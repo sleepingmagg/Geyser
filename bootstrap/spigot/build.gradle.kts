@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.cloud.paper)
     implementation(libs.commodore)
 
+    // Добавляем сериализатор для BungeeCord
     implementation(libs.adventure.text.serializer.bungeecord)
 
     compileOnly(libs.folia.api)

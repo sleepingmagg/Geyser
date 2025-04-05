@@ -154,6 +154,15 @@ public class CommandRegistry implements EventRegistrar {
 
         registerBuiltInCommand(new ListCommand(geyser, "list", "geyser.commands.list.desc", "geyser.command.list"));
         registerBuiltInCommand(new ReloadCommand(geyser, "reload", "geyser.commands.reload.desc", "geyser.command.reload"));
+        cloud.command(cloud.commandBuilder("geyser")
+                .literal("reload")
+                .permission(GEYSER_ROOT_PERMISSION.concat(".command.reload"))
+                .literal("suggestions")
+                .handler(ctx -> {
+                    GeyserCommandSource source = ctx.sender();
+                    ctx.set("message", "suggestions");
+                    commands.get("reload").execute(ctx);
+                }));
         registerBuiltInCommand(new OffhandCommand("offhand", "geyser.commands.offhand.desc", "geyser.command.offhand"));
         registerBuiltInCommand(new DumpCommand(geyser, "dump", "geyser.commands.dump.desc", "geyser.command.dump"));
         registerBuiltInCommand(new VersionCommand(geyser, "version", "geyser.commands.version.desc", "geyser.command.version"));

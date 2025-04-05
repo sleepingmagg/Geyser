@@ -67,6 +67,8 @@ import org.geysermc.geyser.api.network.RemoteServer;
 import org.geysermc.geyser.api.util.MinecraftVersion;
 import org.geysermc.geyser.api.util.PlatformType;
 import org.geysermc.geyser.command.CommandRegistry;
+import org.geysermc.geyser.command.SuggestionsManager;
+import org.geysermc.geyser.command.defaults.VersionCommand;
 import org.geysermc.geyser.configuration.GeyserConfiguration;
 import org.geysermc.geyser.entity.EntityDefinitions;
 import org.geysermc.geyser.erosion.UnixSocketClientListener;
@@ -125,6 +127,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Set;
 
 @Getter
 public class GeyserImpl implements GeyserApi, EventRegistrar {
@@ -286,6 +289,15 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
         }
 
         VersionCheckUtils.checkForOutdatedJava(logger);
+
+        if (config.isNotifyOnNewBedrockUpdate()) {
+            VersionCheckUtils.checkForGeyserUpdate(this::getLogger);
+        }
+
+        // Init command suggestions from suggestions.yml
+        SuggestionsManager.init(this);
+
+        // Initialize common collections/patterns/etc.
     }
 
     private void startInstance() {
@@ -602,9 +614,7 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
             this.eventBus.fire(new GeyserPostInitializeEvent(this.extensionManager, this.eventBus));
         }
 
-        if (config.isNotifyOnNewBedrockUpdate()) {
-            VersionCheckUtils.checkForGeyserUpdate(this::getLogger);
-        }
+        // Initialize common collections/patterns/etc.
     }
 
     @Override

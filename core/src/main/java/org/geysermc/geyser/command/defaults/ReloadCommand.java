@@ -29,6 +29,9 @@ import org.geysermc.geyser.GeyserImpl;
 import org.geysermc.geyser.api.util.TriState;
 import org.geysermc.geyser.command.GeyserCommand;
 import org.geysermc.geyser.command.GeyserCommandSource;
+import org.geysermc.geyser.command.SuggestionsManager;
+import org.geysermc.geyser.session.GeyserSession;
+import org.geysermc.geyser.text.ChatColor;
 import org.geysermc.geyser.text.GeyserLocale;
 import org.incendo.cloud.context.CommandContext;
 
@@ -45,11 +48,28 @@ public class ReloadCommand extends GeyserCommand {
 
     @Override
     public void execute(CommandContext<GeyserCommandSource> context) {
-        GeyserCommandSource source = context.sender();
-        source.sendMessage(GeyserLocale.getPlayerLocaleString("geyser.commands.reload.message", source.locale()));
+        GeyserCommandSource sender = context.sender();
+        boolean bedrockPlayer = sender.connection() != null;
+        String message = context.getOrDefault("message", "");
 
-        geyser.getSessionManager().disconnectAll("geyser.commands.reload.kick");
-        //FIXME Without the tiny wait, players do not get kicked - same happens when Geyser tries to disconnect all sessions on shutdown
-        geyser.getScheduledThread().schedule(geyser::reloadGeyser, 10, TimeUnit.MILLISECONDS);
+        if (message.equals("suggestions")) {
+            // Reload only suggestions.yml
+            SuggestionsManager.init(geyser);
+            sender.sendMessage(ChatColor.GREEN + GeyserLocale.getPlayerLocaleString("geyser.commands.reload.suggestions", sender.locale()));
+            return;
+        }
+
+        if (GeyserImpl.getInstance().isReloading()) {
+            sender.sendMessage(ChatColor.RED + GeyserLocale.getPlayerLocaleString("geyser.commands.reload.already_reloading", sender.locale()));
+            return;
+        }
+
+        if (!bedrockPlayer) {
+            sender.sendMessage(GeyserLocale.getPlayerLocaleString("geyser.commands.reload.console", sender.locale()));
+        }
+
+        geyser.reloadGeyser();
+
+        sender.sendMessage(ChatColor.GREEN + GeyserLocale.getPlayerLocaleString("geyser.commands.reload.success", sender.locale()));
     }
 }
