@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2019-2022 GeyserMC. http://geysermc.org
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @author GeyserMC
+ * @link https://github.com/GeyserMC/Geyser
+ */
+
 package org.geysermc.geyser.translator.protocol.java;
 
 import com.google.common.base.Suppliers;
@@ -15,13 +40,14 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.cloudburstmc.protocol.bedrock.data.command.*;
 import org.cloudburstmc.protocol.bedrock.packet.AvailableCommandsPacket;
 import org.geysermc.geyser.GeyserImpl;
+import org.geysermc.geyser.api.event.java.ServerDefineCommandsEvent;
 import org.geysermc.geyser.api.util.PlatformType;
 import org.geysermc.geyser.command.CommandRegistry;
-import org.geysermc.geyser.command.SuggestionsManager;
 import org.geysermc.geyser.item.enchantment.Enchantment;
 import org.geysermc.geyser.registry.BlockRegistries;
 import org.geysermc.geyser.registry.Registries;
 import org.geysermc.geyser.session.GeyserSession;
+import org.geysermc.geyser.session.cache.registry.JavaRegistries;
 import org.geysermc.geyser.translator.protocol.PacketTranslator;
 import org.geysermc.geyser.translator.protocol.Translator;
 import org.geysermc.geyser.util.EntityUtils;
@@ -138,22 +164,18 @@ public class JavaCommandsTranslator extends PacketTranslator<ClientboundCommands
 
             // Insert the alias name into the command list
             String name = node.getName().toLowerCase(Locale.ROOT);
-            
-            // Получение описания команды в первую очередь из SuggestionsManager
-            String description = SuggestionsManager.getSuggestion(name);
-            
-            // Если в SuggestionsManager нет описания, берем из реестра команд
-            if (description == null) {
-                description = registry.description(name, session.locale());
-            } else {
-                session.getGeyser().getLogger().debug("Found custom suggestion for command: " + name + " -> " + description);
-            }
-            
+            String description = registry.description(name, session.locale());
             BedrockCommandInfo info = new BedrockCommandInfo(name, description, params);
             commands.computeIfAbsent(info, $ -> new HashSet<>()).add(name);
         }
 
         var eventBus = session.getGeyser().eventBus();
+
+        var event = new ServerDefineCommandsEvent(session, commands.keySet());
+        eventBus.fire(event);
+        if (event.isCancelled()) {
+            return;
+        }
 
         var oldEvent = new org.geysermc.geyser.api.event.downstream.ServerDefineCommandsEvent(session, commands.keySet());
         eventBus.fire(oldEvent);
@@ -292,7 +314,8 @@ public class JavaCommandsTranslator extends PacketTranslator<ClientboundCommands
      * Stores the command description and parameter data for best optimizing the Bedrock commands packet.
      */
     private record BedrockCommandInfo(String name, String description, CommandOverloadData[] paramData) implements
-        org.geysermc.geyser.api.event.downstream.ServerDefineCommandsEvent.CommandInfo
+            org.geysermc.geyser.api.event.downstream.ServerDefineCommandsEvent.CommandInfo,
+            ServerDefineCommandsEvent.CommandInfo
     {
     }
 
@@ -335,8 +358,8 @@ public class JavaCommandsTranslator extends PacketTranslator<ClientboundCommands
             if (enchantments != null) {
                 return enchantments;
             }
-            return (enchantments = session.getRegistryCache().enchantments().values().stream()
-                .map(Enchantment::identifier).toArray(String[]::new));
+            return (enchantments = session.getRegistryCache().registry(JavaRegistries.ENCHANTMENT).values().stream()
+                    .map(Enchantment::identifier).toArray(String[]::new));
         }
 
         private String[] getEntityTypes() {
@@ -358,7 +381,7 @@ public class JavaCommandsTranslator extends PacketTranslator<ClientboundCommands
                 return teams;
             }
             return (teams = new CommandEnumData("Geyser_Teams",
-                session.getWorldCache().getScoreboard().getTeamNames(), true
+                    session.getWorldCache().getScoreboard().getTeamNames(), true
             ));
         }
     }
